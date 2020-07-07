@@ -8,7 +8,8 @@ import math
 
 class SqueezeEnv(gym.Env):
       
-      metadata = {'render.modes': ['human']}
+      metadata = {'render.modes': ['human']} #non so bene a che serva ma per ora lo tengo
+      #provo a definire degli attributi che dovrebbero essere le cose che vanno tenute in memoria in esecuzione
       momento_primo=np.ones(2)
       matrice_covarianza=np.identity(2)
       current_reward=0
@@ -19,9 +20,10 @@ class SqueezeEnv(gym.Env):
 
       def __init__(self):
               
-              super(SqueezeEnv, self).__init__()
+              super(SqueezeEnv, self).__init__() #questo non ho capito a che serve ma lo tengo
               
-              
+              #tentativo di dare spazi di azioni e osservazioni, per come lo vorrei fare lo spazio delle azioni è un float da -1 a 1 per u[0] e un altro analogo per u[1]
+              #mentre lo spazio delle osservazioni è una matrice 3x2 dove la prima riga rende il momento primo e le altre due righe sono la matrice di covarianza. Per ora non ho idea se ho capito come funziona la notazione
               self.action_space = spaces.Box(
                   low=-1 , high=1,shape=(1,2), dtype=np.float16)    
               
@@ -31,7 +33,8 @@ class SqueezeEnv(gym.Env):
               
       
       def step(self, action):
-              #definizione dei parametri
+            
+              #definizione dei parametri (ributto qui tutti i conti delle matrici che servono per il calcolo)
               k=1 #loss rate
               eta=1 #eta della misura
               X=k*0.49999 #accoppiamento hamiltoniana del sistema qui l'ho impostato sul valore 'critico'
@@ -70,22 +73,21 @@ class SqueezeEnv(gym.Env):
               B=C.dot(Sy.dot(SIGMA))#np.array([ [-((eta*k)**0.5),0],[0,0] ] ) #
               E=Sy.dot(C.dot(Sb.dot(SIGMA)))#B#
       
-      
+              #queste servono per il feedback
               l=1 
               F=np.array([[l,0],[0,l]])
               q=1e-4
               Q=q*np.identity(2)
               
-              #imposto la sigmac steady state, uno può scegliere quale mettere poi nel conto
+              #imposto la sigmac steady state, per definire uno stop
               a=(k-2*X)/k
               b=k/(k-2*X)
               sigmacss=np.array([[a,0],[0,b]])
+              eps=1e-8 #serve tipo definizione di limite per dire quando siamo in steady state
               
-              eps=1e-10
               dt=1e-4
           
-              #aggiorno il momento primo dello stato d'ambiente (per evoluzione con feedback markov), notare che anche nel monitorato ho aggiunto il termine +Sy.dot(C.dot(rb))*(dt**0.5)
-              
+              #aggiorno il momento primo dello stato d'ambiente 
               rbcm=np.zeros(2)
               rc=self.momento_primo
               rbcm=rbcm+Sy.dot(C.T.dot(rc))*(dt**0.5)
@@ -105,12 +107,15 @@ class SqueezeEnv(gym.Env):
               #funzione costo
               h=sc[0,0]+rc[0]**2 + u.T.dot(Q.dot(u)) #fatta a mente ma mi sembra venga così per la P 1,0,0,0
               self.current_reward=-h
+                  
+              #provo a dare un criterio per smettere dopo un po' che siamo abbastanza vicini allo steady state
               distance=0
               for i in range(0,2):
                   for j in range(0,2):
                       distance=distance+(sc[i,j]-sigmacss[i,j])**2
               if distance<=eps:
                   self.Done=True
+                  
               self.momento_primo=rc
               self.matrice_covarianza=sc
               output=np.array([[rc[0],rc[1]],[sc[0,0],sc[0,1]],[sc[1,0],sc[1,1]]])
@@ -118,7 +123,7 @@ class SqueezeEnv(gym.Env):
                       
       def reset(self):
                             
-          #inizializzo delle cose
+              #reinizializzo delle cose
               #parto da punti diversi ogni volta e vediamo
               self.momento_primo=np.array([rand.uniform(-1,1),rand.uniform(-1,1)]) 
               d=rand.uniform(0,2) 
@@ -132,5 +137,5 @@ class SqueezeEnv(gym.Env):
       
       
       def render(self,mode='human'):
-              print(self.current_reward)
+              print('r:'self.momento_primo,'-h:'self.current_reward)
     
