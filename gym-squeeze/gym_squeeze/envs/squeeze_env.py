@@ -6,6 +6,58 @@ import numpy as np
 from scipy.linalg import sqrtm
 import math
 
+#definizione dei parametri (ributto qui tutti i conti delle matrici che servono per il calcolo)
+k=1 #loss rate
+eta=1 #eta della misura
+X=k*0.49999 #accoppiamento hamiltoniana del sistema qui l'ho impostato sul valore 'critico'
+              
+#setto sigma ambiente Sb e sigma misura Sm
+Sb=np.identity(2)
+z=1e300 #qui abbozzo il lim per z a infinito della sigma di squeezing
+Sm=np.array([[1/z,0],[0,z]])
+              
+#canale rumoroso per la misura con efficenza eta
+Xs=np.identity(2)*(eta**(-0.5))
+Ys=(eta**(-1)-1)*np.identity(2)
+Sm=Xs.dot(Sm.dot(Xs.T))+Ys
+              
+#matrice simplettica
+Sy=np.array([[0,1],[-1,0]])
+              
+#matrice dell'hamiltoniana di Squeezing
+Hs=-X*np.array([[0,1],[1,0]]) 
+              
+#imposto i blocchi per la matrice Hc anche se mi sa non serve
+zero=np.zeros([2,2])
+C=(k**0.5)*Sy.T
+              
+              
+#matrice A dell'evoluzione
+A=Sy.dot(Hs)+0.5*Sy.dot(C.dot(Sy.dot(C.T)))
+                    
+#matrice di drift
+D=Sy.dot(C.dot(Sb.dot(C.T.dot(Sy.T))))
+              
+#imposto la matrice 1/(sigma ambiente+sigma misura)^0.5
+SIGMA=sqrtm(np.linalg.inv(Sb+Sm))
+              
+#imposto le matrici di dinamica monitorata (ho lasciato sotto commento il caso perfetto, ovvero quello dove il limite per z a infinito è preso esatto)
+B=C.dot(Sy.dot(SIGMA))#np.array([ [-((eta*k)**0.5),0],[0,0] ] ) #
+E=Sy.dot(C.dot(Sb.dot(SIGMA)))#B#
+      
+#queste servono per il feedback
+l=1 
+F=np.array([[l,0],[0,l]])
+q=1e-4
+Q=q*np.identity(2)
+             
+#imposto la sigmac steady state, per definire uno stop
+a=(k-2*X)/k
+b=k/(k-2*X)
+sigmacss=np.array([[a,0],[0,b]])
+eps=1e-8 #serve tipo definizione di limite per dire quando siamo in steady state
+dt=1e-4
+
 class SqueezeEnv(gym.Env):
       
       metadata = {'render.modes': ['human']} #non so bene a che serva ma per ora lo tengo
@@ -34,58 +86,7 @@ class SqueezeEnv(gym.Env):
       
       def step(self, action):
             
-              #definizione dei parametri (ributto qui tutti i conti delle matrici che servono per il calcolo)
-              k=1 #loss rate
-              eta=1 #eta della misura
-              X=k*0.49999 #accoppiamento hamiltoniana del sistema qui l'ho impostato sul valore 'critico'
               
-              #setto sigma ambiente Sb e sigma misura Sm
-              Sb=np.identity(2)
-              z=1e300 #qui abbozzo il lim per z a infinito della sigma di squeezing
-              Sm=np.array([[1/z,0],[0,z]])
-              
-              #canale rumoroso per la misura con efficenza eta
-              Xs=np.identity(2)*(eta**(-0.5))
-              Ys=(eta**(-1)-1)*np.identity(2)
-              Sm=Xs.dot(Sm.dot(Xs.T))+Ys
-              
-              #matrice simplettica
-              Sy=np.array([[0,1],[-1,0]])
-              
-              #matrice dell'hamiltoniana di Squeezing
-              Hs=-X*np.array([[0,1],[1,0]]) 
-              
-              #imposto i blocchi per la matrice Hc anche se mi sa non serve
-              zero=np.zeros([2,2])
-              C=(k**0.5)*Sy.T
-              
-              
-              #matrice A dell'evoluzione
-              A=Sy.dot(Hs)+0.5*Sy.dot(C.dot(Sy.dot(C.T)))
-                    
-              #matrice di drift
-              D=Sy.dot(C.dot(Sb.dot(C.T.dot(Sy.T))))
-              
-              #imposto la matrice 1/(sigma ambiente+sigma misura)^0.5
-              SIGMA=sqrtm(np.linalg.inv(Sb+Sm))
-              
-              #imposto le matrici di dinamica monitorata (ho lasciato sotto commento il caso perfetto, ovvero quello dove il limite per z a infinito è preso esatto)
-              B=C.dot(Sy.dot(SIGMA))#np.array([ [-((eta*k)**0.5),0],[0,0] ] ) #
-              E=Sy.dot(C.dot(Sb.dot(SIGMA)))#B#
-      
-              #queste servono per il feedback
-              l=1 
-              F=np.array([[l,0],[0,l]])
-              q=1e-4
-              Q=q*np.identity(2)
-              
-              #imposto la sigmac steady state, per definire uno stop
-              a=(k-2*X)/k
-              b=k/(k-2*X)
-              sigmacss=np.array([[a,0],[0,b]])
-              eps=1e-8 #serve tipo definizione di limite per dire quando siamo in steady state
-              
-              dt=1e-4
           
               #aggiorno il momento primo dello stato d'ambiente 
               rbcm=np.zeros(2)
