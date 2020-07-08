@@ -120,7 +120,7 @@ class SqueezeEnv(gym.Env):
               self.momento_primo=rc
               self.matrice_covarianza=sc
               output=np.array([[rc[0],rc[1]],[sc[0,0],sc[0,1]],[sc[1,0],sc[1,1]]])
-              return output , self.current_reward , self.Done 
+              return output , self.current_reward , self.Done , {}
                       
       def reset(self):
                             
@@ -133,7 +133,7 @@ class SqueezeEnv(gym.Env):
               rc=self.momento_primo
               sc=self.matrice_covarianza
               output=np.array([[rc[0],rc[1]],[sc[0,0],sc[0,1]],[sc[1,0],sc[1,1]]])
-              return output, self.Done
+              return output
           
       
       
