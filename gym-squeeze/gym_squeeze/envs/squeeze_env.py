@@ -9,7 +9,7 @@ import math
 #definizione dei parametri (ributto qui tutti i conti delle matrici che servono per il calcolo)
 k=1 #loss rate
 eta=1 #eta della misura
-X=k*0.49999 #accoppiamento hamiltoniana del sistema qui l'ho impostato sul valore 'critico'
+X=k*0.499 #accoppiamento hamiltoniana del sistema qui l'ho impostato sul valore 'critico'
               
 #setto sigma ambiente Sb e sigma misura Sm
 Sb=np.identity(2)
@@ -55,7 +55,7 @@ Q=q*np.identity(2)
 a=(k-2*X)/k
 b=k/(k-2*X)
 sigmacss=np.array([[a,0],[0,b]])
-eps=1e-8 #serve tipo definizione di limite per dire quando siamo in steady state
+eps=1e-2 #serve tipo definizione di limite per dire quando siamo in steady state
 dt=1e-4
 
 class SqueezeEnv(gym.Env):
@@ -77,17 +77,18 @@ class SqueezeEnv(gym.Env):
               #tentativo di dare spazi di azioni e osservazioni, per come lo vorrei fare lo spazio delle azioni è un float da -1 a 1 per u[0] e un altro analogo per u[1]
               #mentre lo spazio delle osservazioni è una matrice 3x2 dove la prima riga rende il momento primo e le altre due righe sono la matrice di covarianza. Per ora non ho idea se ho capito come funziona la notazione
               self.action_space = spaces.Box(
-                  low=-1 , high=1,shape=(1,2), dtype=np.float16)    
+                  low=-np.inf , high=np.inf,shape=(2,), dtype=np.float16)
+              #print(self.action_space)    
               
               self.observation_space = spaces.Box(
-                  low=-np.inf, high=np.inf, shape=(3, 2), dtype=np.float16)
+                  low=-np.inf, high=np.inf, shape=(6,), dtype=np.float16)
               
               
       
       def step(self, action):
             
               
-          
+              #print(action)
               #aggiorno il momento primo dello stato d'ambiente 
               rbcm=np.zeros(2)
               rc=self.momento_primo
@@ -110,17 +111,14 @@ class SqueezeEnv(gym.Env):
               self.current_reward=-h
                   
               #provo a dare un criterio per smettere dopo un po' che siamo abbastanza vicini allo steady state
-              distance=0
-              for i in range(0,2):
-                  for j in range(0,2):
-                      distance=distance+(sc[i,j]-sigmacss[i,j])**2
+              distance=(sc[0,0]-sigmacss[0,0])**2#+abs(sc[1,1]-sigmacss[1,1])
               if distance<=eps:
                   self.Done=True
                   
               self.momento_primo=rc
               self.matrice_covarianza=sc
-              output=np.array([[rc[0],rc[1]],[sc[0,0],sc[0,1]],[sc[1,0],sc[1,1]]])
-              return output , self.current_reward , self.Done , {}
+              output=[rc[0],rc[1],sc[0,0],sc[0,1],sc[1,0],sc[1,1]]
+              return np.array(output) , self.current_reward , self.Done , {'distanza': distance, 'epsilon':eps}
                       
       def reset(self):
                             
@@ -132,11 +130,14 @@ class SqueezeEnv(gym.Env):
               self.Done=False
               rc=self.momento_primo
               sc=self.matrice_covarianza
-              output=np.array([[rc[0],rc[1]],[sc[0,0],sc[0,1]],[sc[1,0],sc[1,1]]])
+              output=[rc[0],rc[1],sc[0,0],sc[0,1],sc[1,0],sc[1,1]]
+              output=np.array(output)
+              
               return output
           
       
       
       def render(self,mode='human'):
-              print('r:'self.momento_primo,'-h:'self.current_reward)
+              print(self.momento_primo,self.current_reward)
     
+
