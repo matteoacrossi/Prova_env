@@ -50,23 +50,30 @@ l=1
 F=np.array([[l,0],[0,l]])
 q=1e-4
 Q=q*np.identity(2)
+Qinv=np.linalg.inv(Q)
              
 #imposto la sigmac steady state, per definire uno stop
 a=(k-2*X)/k
 b=k/(k-2*X)
 sigmacss=np.array([[a,0],[0,b]])
-eps=1e-2 #serve tipo definizione di limite per dire quando siamo in steady state
-dt=1e-4
+eps=1e-1 #serve tipo definizione di limite per dire quando siamo in steady state
+
 
 class SqueezeEnv(gym.Env):
       
       metadata = {'render.modes': ['human']} #non so bene a che serva ma per ora lo tengo
       #provo a definire degli attributi che dovrebbero essere le cose che vanno tenute in memoria in esecuzione
       momento_primo=np.ones(2)
+      momento_primo_2=np.ones(2)
       matrice_covarianza=np.identity(2)
+      matrice_covarianza_2=np.identity(2)
       current_reward=0
+      current_reward_2=0
       Done=False
-      
+      Done_2=False
+      dt=1e-4
+      Y=0*np.identity(2)
+      P=np.array([[1,0],[0,0]])
       
       
 
@@ -77,17 +84,17 @@ class SqueezeEnv(gym.Env):
               #tentativo di dare spazi di azioni e osservazioni, per come lo vorrei fare lo spazio delle azioni è un float da -1 a 1 per u[0] e un altro analogo per u[1]
               #mentre lo spazio delle osservazioni è una matrice 3x2 dove la prima riga rende il momento primo e le altre due righe sono la matrice di covarianza. Per ora non ho idea se ho capito come funziona la notazione
               self.action_space = spaces.Box(
-                  low=-np.inf , high=np.inf,shape=(2,), dtype=np.float16)
+                  low=-1e3 , high=1e3 ,shape=(2,), dtype=np.float16)
               #print(self.action_space)    
               
               self.observation_space = spaces.Box(
-                  low=-np.inf, high=np.inf, shape=(6,), dtype=np.float16)
+                  low=-1e-3, high=1e3, shape=(6,), dtype=np.float16)
               
               
       
       def step(self, action):
             
-              
+              dt=self.dt 
               #print(action)
               #aggiorno il momento primo dello stato d'ambiente 
               rbcm=np.zeros(2)
@@ -108,7 +115,7 @@ class SqueezeEnv(gym.Env):
               
               #funzione costo
               h=sc[0,0]+rc[0]**2 + u.T.dot(Q.dot(u)) #fatta a mente ma mi sembra venga così per la P 1,0,0,0
-              self.current_reward=-h
+              self.current_reward=h**(-1)
                   
               #provo a dare un criterio per smettere dopo un po' che siamo abbastanza vicini allo steady state
               distance=(sc[0,0]-sigmacss[0,0])**2#+abs(sc[1,1]-sigmacss[1,1])
@@ -119,17 +126,66 @@ class SqueezeEnv(gym.Env):
               self.matrice_covarianza=sc
               output=[rc[0],rc[1],sc[0,0],sc[0,1],sc[1,0],sc[1,1]]
               return np.array(output) , self.current_reward , self.Done , {'distanza': distance, 'epsilon':eps}
-                      
+    
+      #provo a mettere l'agente "imparato"
+      def step_agent(self):
+            
+              dt=self.dt 
+              #print(action)
+              #aggiorno il momento primo dello stato d'ambiente 
+              rbcm=np.zeros(2)
+              rc=self.momento_primo_2
+              rbcm=rbcm+Sy.dot(C.T.dot(rc))*(dt**0.5)
+              
+              rm2=np.random.multivariate_normal(rbcm, (Sb+Sm)/2)
+              dwm=((SIGMA).dot(rm2-rbcm))*(dt**0.5)
+              
+              Y=self.Y
+              P=self.P
+              #momento primo con feedback
+              sc=self.matrice_covarianza_2
+              Y=Y+dt*( Y.dot(A.T)+A.dot(Y) + P - Y.dot(F.dot(Qinv.dot((F.T).dot(Y)))))
+              Kopt=Qinv.dot((F.T).dot(Y))
+              Ab=A-F.dot(Kopt)
+              drc=((Ab).dot(rc))*dt+( E-sc.dot(B)).dot(dwm)+Sy.dot(C.dot(rbcm))*(dt**0.5)
+              rc=rc+drc
+              u=Kopt.dot(rc)
+              self.Y=Y
+              
+              #matrice di covarianza
+              sc=sc+dt*((A.dot(sc)+sc.dot(A.T)+D)-(E-sc.dot(B)).dot((E-sc.dot(B)).T))
+              
+              #funzione costo
+              h=sc[0,0]+rc[0]**2 + u.T.dot(Q.dot(u)) #fatta a mente ma mi sembra venga così per la P 1,0,0,0
+              self.current_reward_2=h**(-1)
+                  
+              #provo a dare un criterio per smettere dopo un po' che siamo abbastanza vicini allo steady state
+              distance=(sc[0,0]-sigmacss[0,0])**2#+abs(sc[1,1]-sigmacss[1,1])
+              if distance<=eps:
+                  self.Done_2=True
+                  
+              self.momento_primo_2=rc
+              self.matrice_covarianza_2=sc
+              output=[rc[0],rc[1],sc[0,0],sc[0,1],sc[1,0],sc[1,1]]
+              return np.array(output) , self.current_reward_2 , self.Done_2 , {'distanza': distance, 'epsilon':eps}
+
       def reset(self):
                             
               #reinizializzo delle cose
               #parto da punti diversi ogni volta e vediamo
-              self.momento_primo=np.array([rand.uniform(-1,1),rand.uniform(-1,1)]) 
+              a=rand.uniform(-1,1)
+              self.momento_primo=np.array([a,a])
+              self.momento_primo_2=np.array([a,a])
               d=rand.uniform(0,2) 
               self.matrice_covarianza=np.array([[d,0],[0,d]])
               self.Done=False
               rc=self.momento_primo
               sc=self.matrice_covarianza
+              self.matrice_covarianza_2=np.array([[d,0],[0,d]])
+              self.Done_2=False
+              rc=self.momento_primo_2
+              sc=self.matrice_covarianza_2
+              self.Y=0*np.identity(2)
               output=[rc[0],rc[1],sc[0,0],sc[0,1],sc[1,0],sc[1,1]]
               output=np.array(output)
               
