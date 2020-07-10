@@ -1,25 +1,36 @@
 import gym
 import numpy as np
 from matplotlib import pyplot as plt
-from stable_baselines.common.policies import MlpPolicy
-from stable_baselines import TRPO
+from stable_baselines import TD3
+from stable_baselines.td3.policies import MlpPolicy
+from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines.ddpg.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
 
 env = gym.make('gym_squeeze:squeeze-v0')
 
-model = TRPO(MlpPolicy, env, verbose=1)
-model.learn(total_timesteps=10000)
-model.save("trpo_squeeze")
+# The noise objects for TD3
+n_actions = env.action_space.shape[-1]
+action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+
+model = TD3(MlpPolicy, env, action_noise=action_noise, verbose=1)
+model.learn(total_timesteps=500000, log_interval=10)
+model.save("td3_squeeze")
 
 del model # remove to demonstrate saving and loading
 
-model = TRPO.load("trpo_squeeze")
-
+model = TD3.load("td3_squeeze")
 obs = env.reset()
 x=[]
 rc=[]
 sc=[]
 rew=[]
 done=[]
+
+rc2=[]
+sc2=[]
+rew2=[]
+done2=[]
+
 dones=False
 i=0
 
@@ -38,6 +49,19 @@ while dones==False:
     #print(type(obs),obs.shape)
     sc.append(A)
     #env.render(mode='human')
+    
+    action2, _states2 = model.predict(obs)
+    obs2, rewards2, dones2, info2 = env.step_agent()
+    #obs=np.array(obs)
+    print(obs2)
+    rc2.append(obs2[0:2])
+    A2=np.array([[obs[2],obs[3]],[obs[4],obs[5]]])
+    rew2.append(rewards2)
+    done2.append(dones2)
+    print(dones2,info2)
+    #print(type(obs),obs.shape)
+    sc2.append(A2)
+    #env.render(mode='human')
 
 rc=np.array(rc)
 
@@ -45,3 +69,13 @@ plt.figure('prova')
 plt.plot(x,rew)
 plt.figure('provarc')
 plt.plot(x,rc[:,0])
+
+rc2=np.array(rc2)
+
+plt.figure('prova')
+plt.plot(x,rew2)
+plt.figure('provarc')
+plt.plot(x,rc2[:,0])
+
+
+
