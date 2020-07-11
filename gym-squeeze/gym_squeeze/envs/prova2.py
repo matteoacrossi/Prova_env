@@ -7,9 +7,12 @@ from stable_baselines import TRPO, ACKTR, A2C, SAC, PPO1
 
 # multiprocess environment
 env = gym.make('gym_squeeze:squeeze-v0')
+model = PPO1(MlpPolicy, env, verbose=1)
+model.learn(total_timesteps=1500000)
+model.save("ppo1_squeeze_2")
 
 model = PPO1.load("ppo1_squeeze_2")
-model.save("quello_quasi_buono_squeeze")
+#model.save("quello_quasi_buono_squeeze")
 obs = env.reset()
 x=[]
 rc=[]
