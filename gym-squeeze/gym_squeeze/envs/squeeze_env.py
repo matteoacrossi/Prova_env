@@ -56,7 +56,7 @@ Qinv=np.linalg.inv(Q)
 a=(k-2*X)/k
 b=k/(k-2*X)
 sigmacss=np.array([[a,0],[0,b]])
-eps=1e-1 #serve tipo definizione di limite per dire quando siamo in steady state
+eps=5e-1 #serve tipo definizione di limite per dire quando siamo in steady state
 
 
 class SqueezeEnv(gym.Env):
@@ -84,11 +84,11 @@ class SqueezeEnv(gym.Env):
               #tentativo di dare spazi di azioni e osservazioni, per come lo vorrei fare lo spazio delle azioni è un float da -1 a 1 per u[0] e un altro analogo per u[1]
               #mentre lo spazio delle osservazioni è una matrice 3x2 dove la prima riga rende il momento primo e le altre due righe sono la matrice di covarianza. Per ora non ho idea se ho capito come funziona la notazione
               self.action_space = spaces.Box(
-                  low=-1e3 , high=1e3 ,shape=(2,), dtype=np.float16)
+                  low=-np.inf , high=np.inf ,shape=(4,), dtype=np.float32)
               #print(self.action_space)    
               
               self.observation_space = spaces.Box(
-                  low=-1e-3, high=1e3, shape=(6,), dtype=np.float16)
+                  low=-np.inf, high=np.inf, shape=(6,), dtype=np.float32)
               
               
       
@@ -105,8 +105,9 @@ class SqueezeEnv(gym.Env):
               dwm=((SIGMA).dot(rm2-rbcm))*(dt**0.5)
               
               #momento primo con feedback
+              action=np.array([[action[0],action[1]],[action[2],action[3]]])
               sc=self.matrice_covarianza
-              u=action
+              u=action.dot(rc)
               drc=A.dot(rc)*dt+(2**(-0.5))*(E-sc.dot(B)).dot(dwm)+F.dot(u)*dt
               rc=rc+drc
               
@@ -115,7 +116,7 @@ class SqueezeEnv(gym.Env):
               
               #funzione costo
               h=sc[0,0]+rc[0]**2 + u.T.dot(Q.dot(u)) #fatta a mente ma mi sembra venga così per la P 1,0,0,0
-              self.current_reward=h**(-1)
+              self.current_reward=(h+0.001)**-1
                   
               #provo a dare un criterio per smettere dopo un po' che siamo abbastanza vicini allo steady state
               distance=(sc[0,0]-sigmacss[0,0])**2#+abs(sc[1,1]-sigmacss[1,1])
@@ -157,7 +158,7 @@ class SqueezeEnv(gym.Env):
               
               #funzione costo
               h=sc[0,0]+rc[0]**2 + u.T.dot(Q.dot(u)) #fatta a mente ma mi sembra venga così per la P 1,0,0,0
-              self.current_reward_2=h**(-1)
+              self.current_reward_2=(h+0.01)**-1
                   
               #provo a dare un criterio per smettere dopo un po' che siamo abbastanza vicini allo steady state
               distance=(sc[0,0]-sigmacss[0,0])**2#+abs(sc[1,1]-sigmacss[1,1])
@@ -173,10 +174,11 @@ class SqueezeEnv(gym.Env):
                             
               #reinizializzo delle cose
               #parto da punti diversi ogni volta e vediamo
+          
               a=rand.uniform(-1,1)
               self.momento_primo=np.array([a,a])
               self.momento_primo_2=np.array([a,a])
-              d=rand.uniform(0,2) 
+              d=rand.uniform(1,1) 
               self.matrice_covarianza=np.array([[d,0],[0,d]])
               self.Done=False
               rc=self.momento_primo
@@ -188,7 +190,8 @@ class SqueezeEnv(gym.Env):
               self.Y=0*np.identity(2)
               output=[rc[0],rc[1],sc[0,0],sc[0,1],sc[1,0],sc[1,1]]
               output=np.array(output)
-              
+              self.current_reward=0
+              self.current_reward_2=0
               return output
           
       
