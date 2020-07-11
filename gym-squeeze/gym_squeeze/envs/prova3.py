@@ -1,24 +1,30 @@
 import gym
 import numpy as np
 from matplotlib import pyplot as plt
-from stable_baselines.ddpg.policies import MlpPolicy
+from stable_baselines.ddpg.policies import MlpPolicy, LnMlpPolicy
 from stable_baselines.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise, AdaptiveParamNoiseSpec
-from stable_baselines import DDPG
+
+from stable_baselines import HER, DQN, SAC, DDPG, TD3
+from stable_baselines.her import GoalSelectionStrategy, HERGoalEnvWrapper
+
+model_class = SAC  # works also with SAC, DDPG and TD3
 
 env = gym.make('gym_squeeze:squeeze-v0')
 
-# the noise objects for DDPG
-n_actions = env.action_space.shape[-1]
-param_noise = AdaptiveParamNoiseSpec(initial_stddev=0.05,desired_action_stddev=0.3)
-action_noise = None#OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=float(0.5) * np.ones(n_actions))
+# Available strategies (cf paper): future, final, episode, random
+goal_selection_strategy = 'future' # equivalent to GoalSelectionStrategy.FUTURE
 
-model = DDPG(MlpPolicy, env, verbose=1, param_noise=param_noise, action_noise=action_noise)
-model.learn(total_timesteps=4000000)
-model.save("ddpg_squeeze")
+# Wrap the model
+model = HER('MlpPolicy', env, model_class, n_sampled_goal=4, goal_selection_strategy=goal_selection_strategy,
+                                                verbose=1)
+# Train the model
+model.learn(1000)
 
-del model # remove to demonstrate saving and loading
+model.save("./her_bit_env")
 
-model = DDPG.load("ddpg_squeeze")
+# WARNING: you must pass an env
+# or wrap your environment with HERGoalEnvWrapper to use the predict method
+model = HER.load('./her_bit_env', env=env)
 
 obs = env.reset()
 x=[]
@@ -79,6 +85,4 @@ plt.figure('prova')
 plt.plot(x,rew2)
 plt.figure('provarc')
 plt.plot(x,rc2[:,0])
-
-
 
