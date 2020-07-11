@@ -10,11 +10,13 @@ env = gym.make('gym_squeeze:squeeze-v0')
 
 # The noise objects for TD3
 n_actions = env.action_space.shape[-1]
-action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+print(n_actions)
+action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.05 * np.ones(n_actions))
 
 model = TD3(MlpPolicy, env, action_noise=action_noise, verbose=1)
 model.learn(total_timesteps=500000, log_interval=10)
 model.save("td3_squeeze")
+
 
 del model # remove to demonstrate saving and loading
 
