@@ -16,9 +16,9 @@ class CustomPolicy(FeedForwardPolicy):
 
 # il modello PPO1_squeeze e successivi sono allenati con rew -h e con ipotesi di u lineare (le azioni sono K)
 env = gym.make('gym_squeeze:squeeze-v0') #la roba tra qui e del model compreso può essere commentata se si vuole solo testare il modello
-#model=PPO1(CustomPolicy, env, verbose=1,entcoeff=0.02, optim_batchsize=256,optim_stepsize=1e-3, tensorboard_log='PPO1')
+#model=PPO1(CustomPolicy, env, verbose=1,entcoeff=0.015, optim_batchsize=256,optim_stepsize=1e-3, tensorboard_log='PPO1')
 model=PPO1.load("PPO1_squeeze_custom6",tensorboard_log='PPO1')
 model.set_env(env)
-model.learn(total_timesteps=2500000,tb_log_name='ppo1__custom')
+model.learn(total_timesteps=5000000,tb_log_name='ppo1__custom')
 model.save("PPO1_squeeze_custom6")
 
