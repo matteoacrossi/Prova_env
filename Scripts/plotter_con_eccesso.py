@@ -21,7 +21,7 @@ rew2=[]
 
 
 steps=int(10e3)#lunghezza cammini
-N=1#cammini
+N=100#cammini
 eccesso2=[] 
 eccesso1=[]
 rtot=np.zeros((steps,2))
@@ -63,8 +63,8 @@ for j in range(0,N): #cammini
       rc2.append(obs2[0:2])
       rew2.append(rewards2)
       if j==0:
-          A=np.array([[obs2[2],obs2[3]],[obs2[4],obs2[5]]])
-          sc2.append(A)
+          A2=np.array([[obs2[2],obs2[3]],[obs2[4],obs2[5]]])
+          sc2.append(A2)
         
   #faccio cose per il formato
   rc=np.array(rc)
