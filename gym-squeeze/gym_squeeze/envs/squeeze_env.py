@@ -96,23 +96,24 @@ class SqueezeEnv(gym.Env):
             
               dt=self.dt 
               #print(action)
-              #aggiorno il momento primo dello stato d'ambiente 
+              ##richiamo il momento primo e aggiorno lo stato d'ambiente (inizializzato a ogni step a zero,zero) 
               rbcm=np.zeros(2)
               rc=self.momento_primo
               rbcm=rbcm+Sy.dot(C.T.dot(rc))*(dt**0.5)
               
+              #estraggo rm per poi definire l'incremento dw
               rm2=np.random.multivariate_normal(rbcm, (Sb+Sm)/2)
               dwm=((SIGMA).dot(rm2-rbcm))*(dt**0.5)
               
-              #momento primo con feedback
+              #momento primo con feedback, dall'azione scelta faccio la matrice K, poi riprendo sc da matrice_covarianza
               action=np.array([[action[0],action[1]],[action[2],action[3]]])
               sc=self.matrice_covarianza
+              #definisco u e aggiorno il momento primo
               u=np.array(action).dot(rc)
-              #print(u)
               drc=A.dot(rc)*dt+(2**(-0.5))*(E-sc.dot(B)).dot(dwm)+F.dot(u)*dt
               rc=rc+drc
               
-              #matrice di covarianza
+              #aggiorno la matrice di covarianza
               sc=sc+dt*((A.dot(sc)+sc.dot(A.T)+D)-(E-sc.dot(B)).dot((E-sc.dot(B)).T))
               
               #funzione costo
@@ -123,11 +124,12 @@ class SqueezeEnv(gym.Env):
               distance=(sc[0,0]-sigmacss[0,0])**2#+abs(sc[1,1]-sigmacss[1,1])
               if distance<=eps:
                   self.Done=True
-                  
+              #alla fine salvo il momento primo e la matrice di covarianza e le metto nell'output
               self.momento_primo=rc
               self.matrice_covarianza=sc
               output=[rc[0],rc[1],sc[0,0],sc[0,1],sc[1,0],sc[1,1]]
-              return np.array(output) , self.current_reward , self.Done , {'distanza': distance, 'epsilon':eps}
+              output=np.array(output)
+              return output , self.current_reward , self.Done , {'distanza': distance, 'epsilon':eps}
     
       #provo a mettere l'agente "imparato"
       def optimal_agent(self):
@@ -156,10 +158,10 @@ class SqueezeEnv(gym.Env):
               #print(u)
               
               #matrice di covarianza
-              sc=0.5*sc+dt*((A.dot(sc)+sc.dot(A.T)+D)-(E-sc.dot(B)).dot((E-sc.dot(B)).T))
+              sc=sc+dt*((A.dot(sc)+sc.dot(A.T)+D)-(E-sc.dot(B)).dot((E-sc.dot(B)).T))
               
               #funzione costo
-              h=sc[0,0]+rc[0]**2 + u.T.dot(Q.dot(u)) #fatta a mente ma mi sembra venga così per la P 1,0,0,0
+              h=0.5*sc[0,0]+rc[0]**2 + u.T.dot(Q.dot(u)) #fatta a mente ma mi sembra venga così per la P 1,0,0,0
               self.current_reward_2=-h#(h+0.001)**-4
                   
               #provo a dare un criterio per smettere dopo un po' che siamo abbastanza vicini allo steady state
@@ -177,23 +179,28 @@ class SqueezeEnv(gym.Env):
               #reinizializzo delle cose
               #parto da punti diversi ogni volta e vediamo
           
-              a=rand.uniform(-1,1)
-              d=rand.uniform(-1,1)
-              n= rand.uniform(0,10)
+              a=0.5#rand.uniform(-1,1)
+              d=0.5#rand.uniform(-1,1)
+              n=5# rand.uniform(0,10)
+              #setto i momenti primi iniziali
               self.momento_primo=np.array([a,d])
               self.momento_primo_2=np.array([a,d])
-               
+              
+              #setto le covarianze iniziali e i 'Done'
               self.matrice_covarianza=(2*n+1)*np.array([[1,0],[0,1]])
               self.Done=False
-              rc=self.momento_primo
-              sc=self.matrice_covarianza
               self.matrice_covarianza_2=(2*n+1)*np.array([[1,0],[0,1]])
               self.Done_2=False
-              rc=self.momento_primo_2
-              sc=self.matrice_covarianza_2
+              
+              rc=self.momento_primo
+              sc=self.matrice_covarianza
+              
+              #resetto a zero la matrice Y per il feedback e preparo l'output
               self.Y=0*np.identity(2)
-              output=[rc[0],rc[1],sc[0,0],sc[0,1],sc[1,0],sc[1,1]]
+              output=[rc[0], rc[1], sc[0,0], sc[0,1], sc[1,0], sc[1,1]]
               output=np.array(output)
+              
+              #resetto le reward
               self.current_reward=0
               self.current_reward_2=0
               
