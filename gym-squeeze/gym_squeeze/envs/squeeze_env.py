@@ -5,6 +5,7 @@ import random as rand
 import numpy as np
 from scipy.linalg import sqrtm
 import math
+import sympy as sym
 
 #definizione dei parametri (ributto qui tutti i conti delle matrici che servono per il calcolo)
 k=1 #loss rate
@@ -75,6 +76,18 @@ class SqueezeEnv(gym.Env):
       Y=0*np.identity(2)
       P=np.array([[1,0],[0,0]])
       
+      #bozza per risoluzione simbolica Riccati stationary eq
+      Fv = sym.Matrix(F)
+      Yv = sym.Matrix(sym.MatrixSymbol('Yv', 2, 2))
+      Qv = sym.Matrix(Qinv)
+      Pv = sym.Matrix(P)
+      Av = sym.Matrix(A)
+      Yv=sym.solve(Av.T*Yv+Yv*Av+Pv-Yv*Fv*Qv*Fv.T*Yv, Yv)
+      #print(Yv[3])
+      Yv=np.array(list(Yv[3]))
+      Yv=np.array( [ [Yv[0],Yv[1]],[Yv[2],Yv[3]] ])
+      Yv=Yv.astype(np.float)
+          
       
 
       def __init__(self):
@@ -107,6 +120,7 @@ class SqueezeEnv(gym.Env):
               
               #momento primo con feedback, dall'azione scelta faccio la matrice K, poi riprendo sc da matrice_covarianza
               action=np.array([[action[0],action[1]],[action[2],action[3]]])
+              #print(action)
               sc=self.matrice_covarianza
               #definisco u e aggiorno il momento primo
               u=np.array(action).dot(rc)
@@ -118,6 +132,8 @@ class SqueezeEnv(gym.Env):
               
               #funzione costo
               h=0.5*sc[0,0]+rc[0]**2 + u.T.dot(Q.dot(u)) #fatta a mente ma mi sembra venga così per la P 1,0,0,0
+              costoQ= u.T.dot(Q.dot(u))
+              costoP=h-costoQ
               self.current_reward=-h#(h+0.001)**-4
                   
               #provo a dare un criterio per smettere dopo un po' che siamo abbastanza vicini allo steady state
@@ -129,13 +145,13 @@ class SqueezeEnv(gym.Env):
               self.matrice_covarianza=sc
               output=[rc[0],rc[1],sc[0,0],sc[0,1],sc[1,0],sc[1,1]]
               output=np.array(output)
-              return output , self.current_reward , self.Done , {'distanza': distance, 'epsilon':eps}
+              return output , self.current_reward , self.Done , {'costoP': costoP, 'costoQ':costoQ}
     
       #provo a mettere l'agente "imparato"
       def optimal_agent(self):
             
               dt=self.dt 
-              #print(action)
+              
               #aggiorno il momento primo dello stato d'ambiente 
               rbcm=np.zeros(2)
               rc=self.momento_primo_2
@@ -144,6 +160,7 @@ class SqueezeEnv(gym.Env):
               rm2=np.random.multivariate_normal(rbcm, (Sb+Sm)/2)
               dwm=((SIGMA).dot(rm2-rbcm))*(dt**0.5)
               
+              #Y=self.Yv
               Y=self.Y
               P=self.P
               #momento primo con feedback
@@ -155,13 +172,15 @@ class SqueezeEnv(gym.Env):
               rc=rc+drc
               u=Kopt.dot(rc)
               self.Y=Y
-              #print(u)
+              #print(Kopt)
               
               #matrice di covarianza
               sc=sc+dt*((A.dot(sc)+sc.dot(A.T)+D)-(E-sc.dot(B)).dot((E-sc.dot(B)).T))
               
               #funzione costo
               h=0.5*sc[0,0]+rc[0]**2 + u.T.dot(Q.dot(u)) #fatta a mente ma mi sembra venga così per la P 1,0,0,0
+              costoQ= u.T.dot(Q.dot(u))
+              costoP=h-costoQ
               self.current_reward_2=-h#(h+0.001)**-4
                   
               #provo a dare un criterio per smettere dopo un po' che siamo abbastanza vicini allo steady state
@@ -172,16 +191,20 @@ class SqueezeEnv(gym.Env):
               self.momento_primo_2=rc
               self.matrice_covarianza_2=sc
               output=[rc[0],rc[1],sc[0,0],sc[0,1],sc[1,0],sc[1,1]]
-              return np.array(output) , self.current_reward_2 , self.Done_2 , {'distanza': distance, 'epsilon':eps}
+              return np.array(output) , self.current_reward_2 , self.Done_2 , {'costoP': costoP, 'costoQ':costoQ}
 
       def reset(self):
                             
               #reinizializzo delle cose
               #parto da punti diversi ogni volta e vediamo
-          
-              a=0.5#rand.uniform(-1,1)
-              d=0.5#rand.uniform(-1,1)
-              n=5# rand.uniform(0,10)
+              a=0.5
+              d=0.5
+              n=5
+              
+              #a=rand.uniform(-1,1)
+              #d=rand.uniform(-1,1)
+              #n=rand.uniform(0,10)
+              
               #setto i momenti primi iniziali
               self.momento_primo=np.array([a,d])
               self.momento_primo_2=np.array([a,d])
