@@ -1,1 +1,2 @@
 'ppo1_squeeze_custom4' rete con layer condivisi |32|32|32|64|, layer value |32|32|32|32|, layer action |32|32|32|32|
+'ppo1_squeeze_custom6' rete con layer condivisi |32|64|64|, layer value |32|64|64|32|, layer action |32|64|64|32|
